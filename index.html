@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossfire: Zero Hour</title>
+    <meta name="description"
+        content="Survive the void in Crossfire: Zero Hour. Creatures crawl from the darkness — how long can you last?">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600&family=Playfair+Display:ital,wght@1,700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- UI Overlays -->
+        <div id="ui-layer">
+            <div id="top-ui">
+                <div id="title-group">
+                    <h1 id="game-title">CROSSFIRE: ZERO HOUR</h1>
+                    <div id="room-info">ROOM 01 [10x10] | KILLS: 0</div>
+                </div>
+                <div id="currency-display" style="gap: 1.5rem;">
+                    <div id="level-group"
+                        style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                        <span id="player-level" style="font-size: 0.7rem; color: #fff; letter-spacing: 0.1rem;">LVL
+                            1</span>
+                        <div id="xp-bar-container"
+                            style="width: 80px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
+                            <div id="xp-bar-fill"
+                                style="width: 0%; height: 100%; background: #44cc44; box-shadow: 0 0 10px rgba(68, 204, 68, 0.4);">
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.8rem;">
+                        <span id="coin-icon">⟡</span>
+                        <span id="coin-count">0</span>
+                    </div>
+                </div>
+            </div>
+            <div id="bottom-ui">
+                <div id="controls-hint">WASD: Move • Mouse: Aim • Click: Shoot • R: Reload • Q,E,F: Powers</div>
+                <div id="hint-group" style="display: flex; gap: 20px; align-items: flex-end;">
+                    <div id="power-slots-hud" style="display: flex; gap: 10px;">
+                        <div class="hud-power-slot" id="hud-slot-0" title="Slot 1 (Q)">[Q] -</div>
+                        <div class="hud-power-slot" id="hud-slot-1" title="Slot 2 (E)">[E] -</div>
+                        <div class="hud-power-slot" id="hud-slot-2" title="Slot 3 (F)">[F] -</div>
+                    </div>
+                    <div id="hint">AMMO: 12/12 | HP: 100</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menus -->
+        <div id="menu-overlay" class="overlay active">
+            <div id="menu-currency-header"
+                style="position: absolute; top: 30px; right: 40px; display: flex; align-items: center; gap: 12px; font-family: 'Outfit', sans-serif; background: rgba(0,0,0,0.4); padding: 8px 16px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05);">
+                <span id="menu-coin-icon" style="color: #ffd700; font-size: 1.2rem;">⟡</span>
+                <span id="menu-coin-count" style="color: #ffd700; font-weight: 600; letter-spacing: 0.1rem;">0</span>
+            </div>
+            <div id="main-menu" class="menu-content active">
+                <h1 class="menu-large-title">CROSSFIRE:<br>ZERO HOUR</h1>
+                <p class="menu-subtitle">Survive the Eternal Darkness</p>
+                <div class="menu-buttons">
+                    <button id="btn-play" class="premium-btn">PLAY</button>
+                    <button id="btn-shop" class="premium-btn">SHOP</button>
+                    <button id="btn-skins" class="premium-btn">SKINS</button>
+                    <button id="btn-upgrades" class="premium-btn">UPGRADES</button>
+                    <button id="btn-powers" class="premium-btn">POWERS</button>
+                    <button id="btn-stats" class="premium-btn">STATS</button>
+                    <button id="btn-settings" class="premium-btn">SETTINGS</button>
+                </div>
+            </div>
+
+            <div id="shop-menu" class="menu-content">
+                <h2 class="menu-title">VOID ARMORY</h2>
+                <div class="shop-list">
+                    <div class="shop-item" id="item-pistol">
+                        <canvas class="item-icon" id="icon-pistol" width="60" height="60"></canvas>
+                        <div class="item-details">
+                            <span class="item-name">Standard Pistol</span>
+                            <span class="item-status">OWNED</span>
+                        </div>
+                        <button class="equip-btn active" data-weapon="pistol">EQUIPPED</button>
+                    </div>
+                    <div class="shop-item" id="item-ak47">
+                        <canvas class="item-icon" id="icon-ak47" width="60" height="60"></canvas>
+                        <div class="item-details">
+                            <span class="item-name">AK-47 (Automatic)</span>
+                            <span class="item-status">500 COINS</span>
+                        </div>
+                        <button class="equip-btn" data-weapon="ak47">BUY</button>
+                    </div>
+                    <div class="shop-item" id="item-shotgun">
+                        <canvas class="item-icon" id="icon-shotgun" width="60" height="60"></canvas>
+                        <div class="item-details">
+                            <span class="item-name">Shotgun (Piercing)</span>
+                            <span class="item-status">1200 COINS</span>
+                        </div>
+                        <button class="equip-btn" data-weapon="shotgun">BUY</button>
+                    </div>
+                    <div class="shop-item" id="item-sniper">
+                        <canvas class="item-icon" id="icon-sniper" width="60" height="60"></canvas>
+                        <div class="item-details">
+                            <span class="item-name">Void Sniper (Pierce-3)</span>
+                            <span class="item-status">2500 COINS</span>
+                        </div>
+                        <button class="equip-btn" data-weapon="sniper">BUY</button>
+                    </div>
+                    <div class="shop-item" id="item-rpg">
+                        <canvas class="item-icon" id="icon-rpg" width="60" height="60"></canvas>
+                        <div class="item-details">
+                            <span class="item-name">RPG-7 (Splash)</span>
+                            <span class="item-status">10000 COINS</span>
+                        </div>
+                        <button class="equip-btn" data-weapon="rpg">BUY</button>
+                    </div>
+                </div>
+                <button id="btn-shop-back" class="back-btn">BACK</button>
+            </div>
+
+            <div id="upgrades-menu" class="menu-content">
+                <h2 class="menu-title">WEAPON UPGRADES</h2>
+                <div class="settings-list" style="text-align: center; max-width: 400px; margin: 0 auto;">
+                    <h3 id="upgrade-weapon-name"
+                        style="margin-bottom: 20px; font-family: 'Playfair Display', serif; color: white;">Standard
+                        Pistol</h3>
+                    <div class="setting-row">
+                        <span>Damage (Lvl <span id="dmg-lvl">0</span>/5)</span>
+                        <button id="btn-upg-dmg" class="premium-btn"
+                            style="width: auto; padding: 0.5rem 1rem; font-size: 0.8rem;">UPGRADE</button>
+                    </div>
+                    <div class="setting-row">
+                        <span>Fire Rate (Lvl <span id="fr-lvl">0</span>/5)</span>
+                        <button id="btn-upg-fr" class="premium-btn"
+                            style="width: auto; padding: 0.5rem 1rem; font-size: 0.8rem;">UPGRADE</button>
+                    </div>
+                    <div class="setting-row">
+                        <span>Magazine (Lvl <span id="mag-lvl">0</span>/5)</span>
+                        <button id="btn-upg-mag" class="premium-btn"
+                            style="width: auto; padding: 0.5rem 1rem; font-size: 0.8rem;">UPGRADE</button>
+                    </div>
+                    <div class="setting-row" id="row-upg-rad" style="display: none;">
+                        <span>Splash Radius (Lvl <span id="rad-lvl">0</span>/5)</span>
+                        <button id="btn-upg-rad" class="premium-btn"
+                            style="width: auto; padding: 0.5rem 1rem; font-size: 0.8rem;">UPGRADE</button>
+                    </div>
+
+                    <h3 style="margin: 25px 0 15px; font-size: 1.1rem; letter-spacing: 0.2rem; color: #44cc44;">PLAYER
+                        UPGRADES</h3>
+
+                    <div class="setting-row">
+                        <span>Max Health (Lvl <span id="hp-lvl">0</span>/5)</span>
+                        <button id="btn-upg-hp" class="premium-btn"
+                            style="width: auto; padding: 0.5rem 1rem; font-size: 0.8rem;">UPGRADE</button>
+                    </div>
+                    <div class="setting-row">
+                        <span>Movement Speed (Lvl <span id="spd-lvl">0</span>/5)</span>
+                        <button id="btn-upg-spd" class="premium-btn"
+                            style="width: auto; padding: 0.5rem 1rem; font-size: 0.8rem;">UPGRADE</button>
+                    </div>
+                    <p id="upg-msg" style="margin-top: 15px; color: #ffaa00; font-size: 0.9rem; min-height: 20px;"></p>
+                </div>
+                <button id="btn-upgrades-back" class="back-btn">BACK</button>
+            </div>
+
+            <div id="stats-menu" class="menu-content">
+                <h2 class="menu-title">LIFETIME STATS</h2>
+                <div class="settings-list">
+                    <div class="setting-row">
+                        <span>Total Kills</span>
+                        <span id="stat-total-kills">0</span>
+                    </div>
+                    <div class="setting-row">
+                        <span>Highest Room</span>
+                        <span id="stat-max-room">1</span>
+                    </div>
+                    <div class="setting-row">
+                        <span>Total Coins Earned</span>
+                        <span id="stat-total-coins">0</span>
+                    </div>
+                    <div class="setting-row">
+                        <span>Shots Fired</span>
+                        <span id="stat-total-shots">0</span>
+                    </div>
+                </div>
+                <button id="btn-stats-back" class="back-btn">BACK</button>
+            </div>
+
+            <div id="skins-menu" class="menu-content">
+                <h2 class="menu-title">SKINS VAULT</h2>
+                <div id="skins-grid" class="shop-list">
+                    <!-- Skins will be populated via JS -->
+                </div>
+                <button id="btn-skins-back" class="back-btn">BACK</button>
+            </div>
+
+            <div id="powers-menu" class="menu-content" style="max-width: 500px;">
+                <h2 class="menu-title">VOID ABILITIES</h2>
+
+                <h3
+                    style="font-size: 0.8rem; letter-spacing: 0.2rem; color: #44cc44; margin-bottom: 10px; text-transform: uppercase;">
+                    Ability Slots</h3>
+                <div id="ability-slots"
+                    style="display: flex; gap: 15px; margin-bottom: 30px; width: 100%; justify-content: center;">
+                    <div class="power-assignment-slot" data-index="0">
+                        <div class="slot-key">Q</div>
+                        <div class="slot-icon">-</div>
+                        <div class="slot-label">LOCKED</div>
+                    </div>
+                    <div class="power-assignment-slot" data-index="1">
+                        <div class="slot-key">E</div>
+                        <div class="slot-icon">-</div>
+                        <div class="slot-label">LOCKED</div>
+                    </div>
+                    <div class="power-assignment-slot" data-index="2">
+                        <div class="slot-key">F</div>
+                        <div class="slot-icon">-</div>
+                        <div class="slot-label">LOCKED</div>
+                    </div>
+                </div>
+
+                <h3
+                    style="font-size: 0.8rem; letter-spacing: 0.2rem; color: #ffaa00; margin-bottom: 5px; text-transform: uppercase;">
+                    Available Powers</h3>
+                <p
+                    style="font-size: 0.65rem; color: rgba(255,255,255,0.4); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.1rem;">
+                    (Click icon to view upgrades)</p>
+                <div id="powers-inventory" class="shop-list">
+                    <!-- Powers will be populated via JS -->
+                </div>
+
+                <button id="btn-powers-back" class="back-btn">BACK</button>
+            </div>
+
+            <div id="power-modal-overlay" class="modal-overlay">
+                <div class="modal-content">
+                    <button id="btn-modal-close" class="modal-close-btn">&times;</button>
+                    <div class="modal-header">
+                        <span id="popup-pd-icon" style="font-size: 4rem;"></span>
+                        <div class="modal-title-group">
+                            <h3 id="popup-pd-name" class="menu-title" style="margin-bottom: 5px;"></h3>
+                            <span id="popup-pd-tagline"
+                                style="font-size: 0.7rem; color: #ffaa00; text-transform: uppercase; letter-spacing: 0.2rem;">Void
+                                Enhancement</span>
+                        </div>
+                    </div>
+
+                    <div class="modal-body">
+                        <p id="popup-pd-desc"
+                            style="margin-bottom: 25px; line-height: 1.6; color: rgba(255,255,255,0.7);"></p>
+
+                        <div id="popup-pd-upgrades-section" class="upgrades-container">
+                            <div class="upgrade-item">
+                                <div class="upg-info">
+                                    <span class="upg-name">DAMAGE MULTIPLIER</span>
+                                    <span class="upg-value"><span id="popup-pd-stat-dmg">0</span>x</span>
+                                </div>
+                                <button id="btn-upg-power-dmg" class="premium-btn upg-action-btn">UPGRADE</button>
+                            </div>
+
+                            <div class="upgrade-item">
+                                <div class="upg-info">
+                                    <span class="upg-name">EXPLOSION RADIUS</span>
+                                    <span class="upg-value"><span id="popup-pd-stat-rad">0</span>m</span>
+                                </div>
+                                <button id="btn-upg-power-rad" class="premium-btn upg-action-btn">UPGRADE</button>
+                            </div>
+                        </div>
+
+                        <div id="popup-pd-upg-msg" class="upgrade-status-msg"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="settings-menu" class="menu-content">
+                <h2 class="menu-title">SETTINGS</h2>
+                <div class="settings-list">
+                    <div class="setting-row">
+                        <span>Music</span>
+                        <div class="toggle" id="toggle-music">
+                            <div class="toggle-track"></div>
+                            <div class="toggle-thumb"></div>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <span>Sound Effects</span>
+                        <div class="toggle" id="toggle-sfx">
+                            <div class="toggle-track"></div>
+                            <div class="toggle-thumb"></div>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <span>Music Volume</span>
+                        <input type="range" id="music-volume-slider" min="0" max="100" value="80">
+                    </div>
+                    <div class="setting-row">
+                        <span>SFX Volume</span>
+                        <input type="range" id="sfx-volume-slider" min="0" max="100" value="80">
+                    </div>
+                    <div class="setting-spacer"></div>
+                    <button id="btn-reset-data" class="danger-btn">RESET ALL DATA</button>
+                </div>
+                <button id="btn-settings-back" class="back-btn">BACK</button>
+            </div>
+
+            <div id="pause-menu" class="menu-content">
+                <h1 class="menu-large-title">PAUSED</h1>
+                <div class="menu-buttons">
+                    <button id="btn-continue" class="premium-btn">CONTINUE</button>
+                    <button id="btn-exit" class="premium-btn">EXIT TO MENU</button>
+                </div>
+            </div>
+
+            <div id="death-menu" class="menu-content">
+                <h1 class="menu-large-title" style="color: #ff3333;">YOU DIED</h1>
+                <p id="death-stats" class="menu-subtitle" style="margin-bottom: 2rem;"></p>
+                <div class="menu-buttons">
+                    <button id="btn-death-restart" class="premium-btn">RESTART FROM ROOM 01</button>
+                    <button id="btn-death-exit" class="premium-btn">EXIT TO MENU</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="vignette"></div>
+        <div id="scanlines"></div>
+    </div>
+    <script src="main.js"></script>
+</body>
+
+</html>
