@@ -986,17 +986,21 @@ function saveGame() {
         stats,
         redeemedCodes
     };
-    const SAVE_KEY = 'crossfire_zero_hour_save';
+    const SAVE_KEY = 'crossfire_2_save';
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
 }
 
 function loadGame() {
-    const OLD_KEY = 'void_save_data';
-    const NEW_KEY = 'crossfire_zero_hour_save';
+    const OLD_KEY_SURVIVOR = 'void_save_data';
+    const OLD_KEY_ZERO_HOUR = 'crossfire_zero_hour_save';
+    const NEW_KEY = 'crossfire_2_save';
 
     let saved = localStorage.getItem(NEW_KEY);
     if (!saved) {
-        saved = localStorage.getItem(OLD_KEY);
+        saved = localStorage.getItem(OLD_KEY_ZERO_HOUR);
+        if (!saved) {
+            saved = localStorage.getItem(OLD_KEY_SURVIVOR);
+        }
         // Migration if old data exists
         if (saved) {
             localStorage.setItem(NEW_KEY, saved);
@@ -1587,6 +1591,8 @@ function init() {
         btnResetData.addEventListener('click', () => {
             if (confirm("ARE YOU SURE? This will wipe all progress, coins, and unlocks forever.")) {
                 localStorage.removeItem('void_save_data');
+                localStorage.removeItem('crossfire_zero_hour_save');
+                localStorage.removeItem('crossfire_2_save');
                 // Hard reset variables
                 coins = 0;
                 currentRoom = 1;
