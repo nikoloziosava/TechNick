@@ -116,7 +116,8 @@ let settings = {
     musicVolume: 80,
     sfxVolume: 80,
     music: false,
-    sfx: true
+    sfx: true,
+    optimization: false
 };
 
 const POWERS = {
@@ -161,6 +162,8 @@ let gracePeriodActive = false;
 let gracePeriodTimer = 0;
 let gracePeriodMaxTimer = 0; // initial timer value for progress bar
 let currentMapIdx = 0;
+
+let redeemedCodes = []; // Track used promo codes
 const MAPS = [
     { name: 'Meadow', type: 'image', src: 'Maps/map_grass.png' },
     { name: 'Dungeon', type: 'dungeon' },
@@ -577,7 +580,8 @@ const audioSystem = {
         "rpg_explosion": "Sounds/Sound effects/Explosions/RPG-7 Explosion.mp3",
         "power_nova": "Sounds/Sound effects/Explosions/RPG-7 Explosion.mp3", // Reuse for now
         "power_dash": "Sounds/Sound effects/Gunshots/Void sniper gunshot.MP3",
-        "power_inferno": "Sounds/Sound effects/Explosions/RPG-7 Explosion.mp3"
+        "power_inferno": "Sounds/Sound effects/Explosions/RPG-7 Explosion.mp3",
+        "money": "Sounds/Sound effects/MoneySFX.mp3"
     },
 
     init() {
@@ -617,7 +621,8 @@ const audioSystem = {
 
     playSound(weaponId, action) {
         if (!settings.sfx) return;
-        const path = this.sfx[`${weaponId}_${action}`];
+        const key = weaponId === 'money' ? 'money' : `${weaponId}_${action}`;
+        const path = this.sfx[key];
         if (path) {
             const snd = new Audio(path);
             snd.volume = Math.min(1, (settings.sfxVolume / 100) * 0.8);
@@ -668,6 +673,7 @@ const player = {
     hp: 100,
     maxHp: 100,
     baseSpeed: 0.055,
+    speed: 0.055,
     equippedWeapon: 'pistol',
     skin: 'default',
     ammo: 12,
@@ -805,10 +811,13 @@ function spawnEnemy() {
     }
 
     const type = ENEMY_TYPES[typeKey];
-    // Increase speed every 5 rooms, capped at +0.025 improvement
-    const roomBonus = Math.min(Math.floor(currentRoom / 5) * 0.004, 0.025);
-    const speedBase = (0.014 + roomBonus) * type.speedMult;
-    const speed = speedBase + Math.random() * 0.005;
+    // Increase speed every 5 rooms
+    const baseSpeed = 0.014 * type.speedMult;
+    const roomBonus = Math.floor(currentRoom / 5) * 0.004;
+    let speed = (0.014 + roomBonus) * type.speedMult + Math.random() * 0.005;
+
+    // Cap speed at 1.25x of base speed
+    speed = Math.min(speed, baseSpeed * 1.25);
 
     enemies.push({
         type: typeKey,
@@ -892,6 +901,9 @@ function spawnCoinPickups(x, y, totalAmount) {
     const biasStrength = Math.max(0, 1.0 - minEdgeDist / 5.0) * 0.85;
 
     let remaining = totalAmount;
+    if (settings.optimization) {
+        remaining = Math.ceil(remaining * 0.6); // Reduce coin amount by 40% when optimized
+    }
     while (remaining > 0) {
         const value = Math.min(remaining, Math.ceil(Math.random() * 3));
         remaining -= value;
@@ -971,7 +983,8 @@ function saveGame() {
         equippedSkin,
         ownedSkins: Object.keys(SKINS).reduce((acc, k) => { acc[k] = SKINS[k].owned; return acc; }, {}),
         settings,
-        stats
+        stats,
+        redeemedCodes
     };
     const SAVE_KEY = 'crossfire_zero_hour_save';
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -990,76 +1003,78 @@ function loadGame() {
         }
     }
 
-    if (!saved) return;
-    try {
-        const data = JSON.parse(saved);
-        coins = data.coins || 0;
-        currentRoom = data.currentRoom || 1;
-        player.equippedWeapon = data.equippedWeapon || 'pistol';
-        if (data.ownedWeapons) {
-            WEAPONS.pistol.owned = data.ownedWeapons.pistol ?? true;
-            WEAPONS.ak47.owned = data.ownedWeapons.ak47 ?? false;
-            WEAPONS.shotgun.owned = data.ownedWeapons.shotgun ?? false;
-            WEAPONS.sniper.owned = data.ownedWeapons.sniper ?? false;
-            WEAPONS.rpg.owned = data.ownedWeapons.rpg ?? false;
-        }
-        if (data.settings) {
-            settings = { ...settings, ...data.settings };
-            updateSettingsUI();
-        }
-        if (data.stats) {
-            stats = { ...stats, ...data.stats };
-            updateStatsUI();
-        }
-        if (data.weaponUpgrades) {
-            WEAPONS.pistol.damageLevel = data.weaponUpgrades.pistol?.dmg || 0;
-            WEAPONS.pistol.firerateLevel = data.weaponUpgrades.pistol?.fr || 0;
-            WEAPONS.pistol.magLevel = data.weaponUpgrades.pistol?.mag || 0;
-            WEAPONS.ak47.damageLevel = data.weaponUpgrades.ak47?.dmg || 0;
-            WEAPONS.ak47.firerateLevel = data.weaponUpgrades.ak47?.fr || 0;
-            WEAPONS.ak47.magLevel = data.weaponUpgrades.ak47?.mag || 0;
-            WEAPONS.shotgun.damageLevel = data.weaponUpgrades.shotgun?.dmg || 0;
-            WEAPONS.shotgun.firerateLevel = data.weaponUpgrades.shotgun?.fr || 0;
-            WEAPONS.shotgun.magLevel = data.weaponUpgrades.shotgun?.mag || 0;
-            WEAPONS.sniper.damageLevel = data.weaponUpgrades.sniper?.dmg || 0;
-            WEAPONS.sniper.firerateLevel = data.weaponUpgrades.sniper?.fr || 0;
-            WEAPONS.sniper.magLevel = data.weaponUpgrades.sniper?.mag || 0;
-            WEAPONS.rpg.damageLevel = data.weaponUpgrades.rpg?.dmg || 0;
-            WEAPONS.rpg.firerateLevel = data.weaponUpgrades.rpg?.fr || 0;
-            WEAPONS.rpg.magLevel = data.weaponUpgrades.rpg?.mag || 0;
-            WEAPONS.rpg.radiusLevel = data.weaponUpgrades.rpg?.rad || 0;
-        }
-        if (data.powers) {
-            POWERS.explosion.owned = !!data.powers.explosion;
-            POWERS.explosion.damageLevel = data.powers.explosionDmgLvl || 0;
-            POWERS.explosion.radiusLevel = data.powers.explosionRadLvl || 0;
-        }
-        equippedPowers = data.equippedPowers || [null, null, null];
-
-        if (data.playerUpgrades) {
-            playerUpgrades = { ...playerUpgrades, ...data.playerUpgrades };
-        }
-        playerLevel = data.playerLevel || 1;
-        playerXP = data.playerXP || 0;
-
-        if (data.equippedSkin) {
-            equippedSkin = data.equippedSkin;
-            player.skin = equippedSkin;
-        }
-        if (data.ownedSkins) {
-            for (const k in data.ownedSkins) {
-                if (SKINS[k]) SKINS[k].owned = data.ownedSkins[k];
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            coins = data.coins || 0;
+            currentRoom = data.currentRoom || 1;
+            player.equippedWeapon = data.equippedWeapon || 'pistol';
+            if (data.ownedWeapons) {
+                WEAPONS.pistol.owned = data.ownedWeapons.pistol ?? true;
+                WEAPONS.ak47.owned = data.ownedWeapons.ak47 ?? false;
+                WEAPONS.shotgun.owned = data.ownedWeapons.shotgun ?? false;
+                WEAPONS.sniper.owned = data.ownedWeapons.sniper ?? false;
+                WEAPONS.rpg.owned = data.ownedWeapons.rpg ?? false;
             }
-        }
+            if (data.settings) {
+                settings = { ...settings, ...data.settings };
+                updateSettingsUI();
+            }
+            if (data.stats) {
+                stats = { ...stats, ...data.stats };
+                updateStatsUI();
+            }
+            if (data.weaponUpgrades) {
+                WEAPONS.pistol.damageLevel = data.weaponUpgrades.pistol?.dmg || 0;
+                WEAPONS.pistol.firerateLevel = data.weaponUpgrades.pistol?.fr || 0;
+                WEAPONS.pistol.magLevel = data.weaponUpgrades.pistol?.mag || 0;
+                WEAPONS.ak47.damageLevel = data.weaponUpgrades.ak47?.dmg || 0;
+                WEAPONS.ak47.firerateLevel = data.weaponUpgrades.ak47?.fr || 0;
+                WEAPONS.ak47.magLevel = data.weaponUpgrades.ak47?.mag || 0;
+                WEAPONS.shotgun.damageLevel = data.weaponUpgrades.shotgun?.dmg || 0;
+                WEAPONS.shotgun.firerateLevel = data.weaponUpgrades.shotgun?.fr || 0;
+                WEAPONS.shotgun.magLevel = data.weaponUpgrades.shotgun?.mag || 0;
+                WEAPONS.sniper.damageLevel = data.weaponUpgrades.sniper?.dmg || 0;
+                WEAPONS.sniper.firerateLevel = data.weaponUpgrades.sniper?.fr || 0;
+                WEAPONS.sniper.magLevel = data.weaponUpgrades.sniper?.mag || 0;
+                WEAPONS.rpg.damageLevel = data.weaponUpgrades.rpg?.dmg || 0;
+                WEAPONS.rpg.firerateLevel = data.weaponUpgrades.rpg?.fr || 0;
+                WEAPONS.rpg.magLevel = data.weaponUpgrades.rpg?.mag || 0;
+                WEAPONS.rpg.radiusLevel = data.weaponUpgrades.rpg?.rad || 0;
+            }
+            if (data.powers) {
+                POWERS.explosion.owned = !!data.powers.explosion;
+                POWERS.explosion.damageLevel = data.powers.explosionDmgLvl || 0;
+                POWERS.explosion.radiusLevel = data.powers.explosionRadLvl || 0;
+            }
+            equippedPowers = data.equippedPowers || [null, null, null];
 
-        applyUpgrades();
-        updateHUD();
-        updateShopUI();
-        updateSkinsUI();
-        updatePowersUI();
-    } catch (e) {
-        console.error("Failed to load save data", e);
+            if (data.playerUpgrades) {
+                playerUpgrades = { ...playerUpgrades, ...data.playerUpgrades };
+            }
+            playerLevel = data.playerLevel || 1;
+            playerXP = data.playerXP || 0;
+
+            if (data.equippedSkin) {
+                equippedSkin = data.equippedSkin;
+                player.skin = equippedSkin;
+            }
+            if (data.ownedSkins) {
+                for (const k in data.ownedSkins) {
+                    if (SKINS[k]) SKINS[k].owned = data.ownedSkins[k];
+                }
+            }
+            redeemedCodes = data.redeemedCodes || [];
+        } catch (e) {
+            console.error("Failed to load save data", e);
+        }
     }
+
+    applyUpgrades();
+    updateHUD();
+    updateShopUI();
+    updateSkinsUI();
+    updatePowersUI();
 }
 
 function applyUpgrades() {
@@ -1087,6 +1102,11 @@ function updateSettingsUI() {
     if (toggleSFX) {
         if (settings.sfx) toggleSFX.classList.add('active');
         else toggleSFX.classList.remove('active');
+    }
+    const toggleOpt = document.getElementById('toggle-optimization');
+    if (toggleOpt) {
+        if (settings.optimization) toggleOpt.classList.add('active');
+        else toggleOpt.classList.remove('active');
     }
     const musicVolumeSlider = document.getElementById('music-volume-slider');
     if (musicVolumeSlider) musicVolumeSlider.value = settings.musicVolume;
@@ -1528,6 +1548,39 @@ function init() {
         }
     };
 
+    const btnRedeem = document.getElementById('btn-redeem');
+    const promoInput = document.getElementById('promo-input');
+    const promoMsg = document.getElementById('promo-msg');
+
+    if (btnRedeem) {
+        btnRedeem.onclick = () => {
+            const code = promoInput.value.trim();
+            if (!code) return;
+
+            if (redeemedCodes.includes(code)) {
+                promoMsg.style.color = "#ff4444";
+                promoMsg.textContent = "ALREADY REDEEMED!";
+                return;
+            }
+
+            if (code === "Release!") {
+                redeemedCodes.push(code);
+                coins += 500;
+                audioSystem.playSound('money');
+                animateCoinGain(500);
+                updateHUD();
+                saveGame();
+                promoMsg.style.color = "#44cc44";
+                promoMsg.textContent = "SUCCESS! +500 COINS";
+                promoInput.value = "";
+            } else {
+                promoMsg.style.color = "#ff4444";
+                promoMsg.textContent = "INVALID CODE!";
+            }
+
+            setTimeout(() => { promoMsg.textContent = ""; }, 3000);
+        };
+    }
 
     const btnResetData = document.getElementById('btn-reset-data');
     if (btnResetData) {
@@ -1558,6 +1611,7 @@ function init() {
                 WEAPONS.rpg.firerateLevel = 0;
                 WEAPONS.rpg.magLevel = 0;
 
+                redeemedCodes = [];
                 equippedPowers = [null, null, null];
                 for (const k in POWERS) POWERS[k].owned = false;
 
@@ -1759,6 +1813,15 @@ function init() {
         toggleSFX.addEventListener('click', () => {
             toggleSFX.classList.toggle('active');
             settings.sfx = toggleSFX.classList.contains('active');
+            saveGame();
+        });
+    }
+
+    const toggleOpt = document.getElementById('toggle-optimization');
+    if (toggleOpt) {
+        toggleOpt.addEventListener('click', () => {
+            toggleOpt.classList.toggle('active');
+            settings.optimization = toggleOpt.classList.contains('active');
             saveGame();
         });
     }
@@ -2087,6 +2150,43 @@ function shoot() {
     updateHUD();
 }
 
+function animateCoinGain(amount) {
+    const header = document.getElementById('menu-currency-header');
+    const topUi = document.getElementById('currency-display');
+    const parent = header.offsetParent ? header : topUi;
+    if (!parent) return;
+
+    const anim = document.createElement('span');
+    anim.textContent = `+${amount}`;
+    anim.style.position = 'absolute';
+    anim.style.right = parent === header ? '20px' : '0px';
+    anim.style.top = parent === header ? '0px' : '-20px';
+    anim.style.color = '#44cc44';
+    anim.style.fontWeight = 'bold';
+    anim.style.fontFamily = "'Outfit', sans-serif";
+    anim.style.fontSize = '1.2rem';
+    anim.style.pointerEvents = 'none';
+    anim.style.zIndex = '1000';
+    anim.style.animation = 'coinGainAnim 1.5s ease-out forwards';
+
+    if (!document.getElementById('coin-gain-style')) {
+        const style = document.createElement('style');
+        style.id = 'coin-gain-style';
+        style.textContent = `
+            @keyframes coinGainAnim {
+                0% { opacity: 0; transform: translateY(0); }
+                20% { opacity: 1; transform: translateY(-10px); }
+                80% { opacity: 1; transform: translateY(-15px); }
+                100% { opacity: 0; transform: translateY(-30px); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    parent.appendChild(anim);
+    setTimeout(() => { anim.remove(); }, 1500);
+}
+
 // --- HUD & UI Updates ---
 function updateStatsUI() {
     document.getElementById('stat-total-kills').textContent = stats.totalKills;
@@ -2128,16 +2228,25 @@ function updateHUD() {
     const roomInfo = document.getElementById('room-info');
     const hint = document.getElementById('hint');
     const coinCount = document.getElementById('coin-count');
+    const menuCoinCount = document.getElementById('menu-coin-count');
 
-    const xpFill = document.getElementById('xp-bar-fill');
-    const lvlText = document.getElementById('player-level');
-    const xpPercent = (playerXP / getXPRequired(playerLevel)) * 100;
-    xpFill.style.width = `${xpPercent}%`;
-    lvlText.textContent = `LVL ${playerLevel}`;
-
+    // Stats
     coinCount.textContent = coins;
+    if (menuCoinCount) menuCoinCount.textContent = coins;
     roomInfo.textContent = `ROOM ${String(currentRoom).padStart(2, '0')} [10x10]  |  KILLS: ${killCount}`;
 
+    // XP Bar
+    const xpFill = document.getElementById('xp-bar-fill');
+    const lvlText = document.getElementById('player-level');
+    if (xpFill && lvlText) {
+        const req = getXPRequired(playerLevel);
+        const prev = playerLevel > 1 ? getXPRequired(playerLevel - 1) : 0;
+        const progress = ((playerXP - prev) / (req - prev)) * 100;
+        xpFill.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+        lvlText.textContent = `LVL ${playerLevel}`;
+    }
+
+    // HUD Hints (Ammo/HP)
     if (player.reloading) {
         hint.textContent = 'RELOADING...';
         hint.style.color = 'rgba(255, 200, 50, 0.8)';
@@ -2148,13 +2257,10 @@ function updateHUD() {
         hint.textContent = 'NO AMMO — R to reload';
         hint.style.color = 'rgba(255, 50, 50, 1)';
     } else {
-        updatePowerHUD();
-        const menuCoinCount = document.getElementById('menu-coin-count');
-        if (menuCoinCount) menuCoinCount.textContent = coins;
-
         const displayHp = Math.max(0, Math.ceil(player.hp));
         hint.textContent = `AMMO: ${player.ammo}/${player.maxAmmo} | HP: ${displayHp}`;
         hint.style.color = 'rgba(255, 255, 255, 0.5)';
+        updatePowerHUD();
     }
 }
 
