@@ -122,6 +122,20 @@
                         <button class="equip-btn" data-weapon="rpg">BUY</button>
                     </div>
                 </div>
+                <!-- Promo Code Section -->
+                <div id="promo-section"
+                    style="margin-top: 2rem; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 10px; padding: 15px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 4px;">
+                    <span
+                        style="font-size: 0.7rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.1rem;">Redeem
+                        Promo Code</span>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="promo-input" placeholder="ENTER CODE..."
+                            style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px 12px; font-family: 'Outfit', sans-serif; font-size: 0.8rem; letter-spacing: 0.1rem; outline: none;">
+                        <button id="btn-redeem" class="premium-btn"
+                            style="width: auto; padding: 8px 20px; font-size: 0.75rem;">REDEEM</button>
+                    </div>
+                    <p id="promo-msg" style="font-size: 0.75rem; min-height: 1rem; margin-top: 5px;"></p>
+                </div>
                 <button id="btn-shop-back" class="back-btn">BACK</button>
             </div>
 
@@ -292,6 +306,13 @@
                     <div class="setting-row">
                         <span>Sound Effects</span>
                         <div class="toggle" id="toggle-sfx">
+                            <div class="toggle-track"></div>
+                            <div class="toggle-thumb"></div>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <span>Optimization (Reduced Coins)</span>
+                        <div class="toggle" id="toggle-optimization">
                             <div class="toggle-track"></div>
                             <div class="toggle-thumb"></div>
                         </div>
