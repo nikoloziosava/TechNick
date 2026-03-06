@@ -153,7 +153,7 @@ let nextSpawnTimer = 0;
 let gameState = 'menu'; // 'menu', 'playing', 'dead', 'roomClear', 'paused'
 let currentRoom = 1;
 let killCount = 0;
-let coins = 500000;
+let coins = 0;
 let roomClearTimer = 0;
 const ROOM_CLEAR_DELAY = 120; // frames before next room (used as fallback)
 // Grace period tiers (at 60fps): coins → seconds
@@ -1010,7 +1010,7 @@ function loadGame() {
     if (saved) {
         try {
             const data = JSON.parse(saved);
-            coins = data.coins ?? 500000;
+            coins = data.coins || 0;
             currentRoom = data.currentRoom || 1;
             player.equippedWeapon = data.equippedWeapon || 'pistol';
             if (data.ownedWeapons) {
@@ -1594,7 +1594,7 @@ function init() {
                 localStorage.removeItem('crossfire_zero_hour_save');
                 localStorage.removeItem('crossfire_2_save');
                 // Hard reset variables
-                coins = 500000;
+                coins = 0;
                 currentRoom = 1;
                 WEAPONS.ak47.owned = false;
                 WEAPONS.shotgun.owned = false;
